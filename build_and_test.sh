@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "=== Building and Testing Monster Project ==="
+echo " Building and Testing Monster Project "
 
 # Очистка
 rm -rf build
@@ -13,7 +13,7 @@ make
 
 # Запуск теста
 echo ""
-echo "=== Running Tests ==="
+echo "Running Tests "
 ./monster_tests
 
 # Проверка результата
