@@ -9,12 +9,40 @@ on:
     branches: [ master, main ]
 
 jobs:
-  build-and-test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest] 
+  build-linux:
+    name: Build Linux (DEB)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure CMake with tests
+      run: cmake -B build -DBUILD_TESTS=ON
+    
+    - name: Build
+      run: cmake --build build
+    
+    - name: Run tests
+      working-directory: build
+      run: ./monster_tests
+    
+    - name: Build DEB package
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        cd build
+        cpack -G DEB
+    
+    - name: Upload DEB artifact
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-deb
+        path: build/*.deb
 
-    runs-on: ${{ matrix.os}}
+  build-windows:
+    name: Build Windows (EXE)
+    runs-on: windows-latest
+    
     steps:
     - uses: actions/checkout@v4
     
@@ -26,42 +54,31 @@ jobs:
     
     - name: Run tests
       working-directory: build
-      run: ctest --verbose
+      run: ./monster_tests
+      shell: bash
     
-    - name: Build DEB package(Linux)
-      if: matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/')
+    - name: Copy EXE for release
+      if: startsWith(github.ref, 'refs/tags/')
       run: |
-        cd build
-        cpack -G DEB
-        
-    - name: Build Windows ZIP package(Windows)
-      if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
-      run: |
-        cd build
-        cpack -G ZIP
+        copy build/Release/monster_demo.exe monster_demo.exe
+      shell: cmd
     
-    - name: Upload Linux DEB artifact
-      if: matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/')
+    - name: Upload EXE artifact
+      if: startsWith(github.ref, 'refs/tags/')
       uses: actions/upload-artifact@v4
       with:
-        name: deb-package
-        path: build/*.deb
-        
-    - name: Upload Windows installer artifact
-      if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-installer
-        path: build/*.exe
+        name: windows-exe
+        path: monster_demo.exe
 
   create-release:
-    needs: build-and-test
+    name: Create GitHub Release
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
-    - name: Download ALL artifact
+    - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts
@@ -69,9 +86,9 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        files: 
-          artifacts/deb-package/*.deb
-          artifacts/windows.installer/*.exe
+        files: |
+          artifacts/linux-deb/*.deb
+          artifacts/windows-exe/*.exe
         draft: false
         prerelease: false
         generate_release_notes: true
