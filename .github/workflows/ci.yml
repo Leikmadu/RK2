@@ -53,11 +53,13 @@ jobs:
       run: cmake --build build --config Release
     
     - name: Copy EXE for release
+      if: startsWith(github.ref, 'refs/tags/')
       run: |
-        copy build/Release/monster_demo.exe monster_demo.exe
+        copy build\\Release\\monster_demo.exe monster_demo.exe
       shell: cmd
     
     - name: Upload EXE artifact
+      if: startsWith(github.ref, 'refs/tags/')
       uses: actions/upload-artifact@v4
       with:
         name: windows-exe
@@ -75,12 +77,6 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
-    
-    - name: List files
-      run: |
-        ls -la artifacts/
-        ls -la artifacts/linux-deb/ || echo "No linux-deb"
-        ls -la artifacts/windows-exe/ || echo "No windows-exe"
     
     - name: Create Release
       uses: softprops/action-gh-release@v2
